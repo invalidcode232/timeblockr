@@ -51,7 +51,7 @@ class Client {
             }
         });
 
-        return googleEvents;
+        return events;
     };
 }
 
