@@ -177,3 +177,6 @@ dist
 credentials.json
 token.json
 keys.json
+
+combined.log
+error.log
