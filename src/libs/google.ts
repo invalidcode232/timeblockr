@@ -2,6 +2,7 @@ import { authorize } from '../utils/auth';
 import type { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import type { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
+import type { CalendarEvent } from '../types/types';
 
 class Client {
     client: OAuth2Client | JSONClient | null;
@@ -14,7 +15,7 @@ class Client {
         this.client = await authorize();
     };
 
-    listEvents = async () => {
+    getEvents = async () => {
         if (!this.client) {
             this.auth();
         }
@@ -32,18 +33,25 @@ class Client {
             orderBy: 'startTime',
         });
 
-        const events = res.data.items;
-        if (!events || events.length === 0) {
-            console.log('No upcoming events found.');
-            return;
+        const googleEvents = res.data.items;
+        if (!googleEvents || googleEvents.length === 0) {
+            console.log('no calendar events found');
+            return null;
         }
 
-        console.log('Upcoming 10 events:');
+        let events: CalendarEvent[] = [];
 
-        events.map((event, _) => {
-            const start = event.start?.dateTime || event.start?.date;
-            console.log(`${start} - ${event.summary}`);
+        googleEvents.map((event, _) => {
+            if (event.summary) {
+                events.push({
+                    startTime: event.start?.dateTime,
+                    endTime: event.end?.dateTime,
+                    summary: event?.summary,
+                });
+            }
         });
+
+        return googleEvents;
     };
 }
 
