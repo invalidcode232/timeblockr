@@ -1,5 +1,11 @@
 # timeblockr
 
+Smart AI time-blocking calendar app.
+
+Integrates with Google Calendar and processes event data through a LLM model hosted in Azure.
+
+This app is built as part of HKU's ENGG1320 course.
+
 To install dependencies:
 
 ```bash
@@ -11,5 +17,3 @@ To run:
 ```bash
 bun run index.ts
 ```
-
-This project was created using `bun init` in bun v1.2.2. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
