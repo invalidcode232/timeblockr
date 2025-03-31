@@ -4,7 +4,7 @@ import { google } from 'googleapis';
 import type { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
 import type { CalendarEvent } from '../types/types';
 
-class Client {
+class GoogleClient {
     client: OAuth2Client | JSONClient | null;
 
     constructor() {
@@ -55,4 +55,4 @@ class Client {
     };
 }
 
-export { Client };
+export default GoogleClient;

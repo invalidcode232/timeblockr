@@ -3,7 +3,7 @@ import winston from 'winston';
 const logger = winston.createLogger({
     level: 'info',
     format: winston.format.json(),
-    defaultMeta: { service: 'user-service' },
+    defaultMeta: { service: 'timeblockr' },
     transports: [
         //
         // - Write all logs with importance level of `error` or higher to `error.log`
