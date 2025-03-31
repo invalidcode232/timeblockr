@@ -24,11 +24,14 @@ class AIClient {
 
     getSummary = async (schedule: string) => {
         if (!this.aiPrompt) {
-            this.aiPrompt = await Bun.file(
-                path.join(process.cwd(), 'prompt.txt')
-            ).text();
+            const promptPath = path.join(
+                process.cwd(),
+                '/src/include/prompt.txt'
+            );
 
-            logger.info('read AI prompt from prompt.txt');
+            this.aiPrompt = await Bun.file(promptPath).text();
+
+            logger.info('read AI prompt from ' + promptPath);
         }
 
         const res = await this.client.chat.completions.create({
