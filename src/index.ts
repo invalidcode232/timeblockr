@@ -1,8 +1,21 @@
 import GoogleClient from './libs/google';
 import logger from './utils/logging';
 import AIClient from './libs/openai';
+import path from 'path';
 
 const main = async () => {
+    const credentialsFile = Bun.file(
+        path.join(process.cwd(), 'credentials', 'credentials.json')
+    );
+
+    if (!credentialsFile.exists()) {
+        logger.error(
+            'credentials file not found. please provide a valid credentials.json from Google Developer Console'
+        );
+
+        return;
+    }
+
     const gClient = new GoogleClient();
     const aiClient = new AIClient();
 

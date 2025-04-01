@@ -12,8 +12,12 @@ const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+const TOKEN_PATH = path.join(process.cwd(), 'credentials', 'token.json');
+const CREDENTIALS_PATH = path.join(
+    process.cwd(),
+    'credentials',
+    'credentials.json'
+);
 
 /**
  * Reads previously authorized credentials from the save file.
@@ -37,6 +41,12 @@ const loadSavedCredentialsIfExist = async (): Promise<JSONClient | null> => {
  */
 const saveCredentials = async (client: OAuth2Client): Promise<void> => {
     const credentialFile = Bun.file(CREDENTIALS_PATH);
+
+    if (!credentialFile.exists()) {
+        throw new Error(
+            'credentials file not found. please provide a valid credentials.json from Google Developer Console.'
+        );
+    }
 
     const keys = await credentialFile.json();
 

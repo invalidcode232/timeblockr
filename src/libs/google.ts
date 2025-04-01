@@ -3,6 +3,7 @@ import type { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import type { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
 import type { CalendarEvent } from '../types/types';
+import logger from '../utils/logging';
 
 class GoogleClient {
     client: OAuth2Client | JSONClient | null;
