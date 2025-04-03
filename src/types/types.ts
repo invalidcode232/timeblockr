@@ -4,4 +4,10 @@ type CalendarEvent = {
     endTime?: string | null;
 };
 
-export type { CalendarEvent };
+interface AIPayload {
+    currentCondition: string;
+    currentTemperature: number;
+    events: CalendarEvent[];
+}
+
+export type { CalendarEvent, AIPayload };

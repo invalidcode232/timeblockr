@@ -19,7 +19,7 @@
         "google-auth-library": "^9.15.1",
         "googleapis": "^144.0.0",
         "openai": "^4.83.0",
+        "openweather-api-node": "^3.1.5",
         "winston": "^3.17.0"
     }
 }
-

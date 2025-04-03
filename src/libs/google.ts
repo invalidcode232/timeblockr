@@ -36,7 +36,7 @@ class GoogleClient {
 
         const googleEvents = res.data.items;
         if (!googleEvents || googleEvents.length === 0) {
-            console.log('no calendar events found');
+            logger.info('no calendar events found');
             return null;
         }
 
