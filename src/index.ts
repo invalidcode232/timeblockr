@@ -25,7 +25,8 @@ const main = async () => {
     logger.info(
         'successfully received weather data - current weather: ' +
             weather.temp.cur.toString() +
-            'c'
+            'c, conditionId: ' +
+            weather.conditionId.toString()
     );
 
     const aiPayload: AIPayload = {

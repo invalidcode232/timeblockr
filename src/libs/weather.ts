@@ -18,18 +18,18 @@ class WeatherClient {
     };
 
     static getConditionFromId = (conditionId: number) => {
-        if (conditionId >= 200) {
+        if (conditionId < 300) {
             return 'thunderstorm';
-        } else if (conditionId >= 300) {
+        } else if (conditionId < 400) {
             return 'drizzle';
-        } else if (conditionId >= 500) {
+        } else if (conditionId < 600) {
             return 'rain';
-        } else if (conditionId >= 600) {
+        } else if (conditionId < 700) {
             return 'snow';
-        } else if (conditionId >= 700) {
-            return 'mist';
         } else if (conditionId == 800) {
             return 'clear';
+        } else if (conditionId < 800) {
+            return 'mist';
         } else {
             return 'cloudy';
         }
