@@ -2,7 +2,7 @@ import GoogleClient from './libs/google';
 import logger from './utils/logging';
 import AIClient from './libs/openai';
 import WeatherClient from './libs/weather';
-import type { AIPayload } from './types/types';
+import type { AISummarizerPayload, AISchedulerPayload, CalendarEvent } from './types/types';
 
 const main = async () => {
     const gClient = new GoogleClient();
@@ -29,19 +29,22 @@ const main = async () => {
         weather.conditionId.toString()
     );
 
-    const aiPayload: AIPayload = {
+    const sampleNewEvent: CalendarEvent = {
+        summary: 'Do math homework',
+    }
+
+    const aiPayload: AISchedulerPayload = {
         currentTemperature: weather.temp.cur,
         currentCondition: WeatherClient.getConditionFromId(weather.conditionId),
         events: events,
+        newEvent: sampleNewEvent,
     };
 
-    console.log(aiPayload);
+    const schedulerRes = await aiClient.getScheduler(JSON.stringify(aiPayload));
 
-    // const res = await aiClient.getSummary(JSON.stringify(aiPayload));
+    logger.info('successfully received response from llm');
 
-    // logger.info('successfully received response from llm');
-
-    // console.log(res);
+    console.log(schedulerRes);
 };
 
 main();
