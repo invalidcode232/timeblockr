@@ -3,9 +3,13 @@ import os
 from openai import AzureOpenAI
 import time
 import re
+from dotenv import load_dotenv
+from pathlib import Path
 
+root_dir = Path(__file__).resolve().parents[2]  # Go up three levels to project root
+dotenv_path = root_dir / '.env'
+load_dotenv(dotenv_path)
 
-# Initialize Azure OpenAI client
 def initialize_client():
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -28,7 +32,6 @@ def initialize_client():
     return client, deployment_name
 
 
-# Generate a response using Azure OpenAI
 def generate_response(
     client, deployment_name, prompt, system_message="You are a helpful assistant."
 ):
@@ -47,14 +50,13 @@ def generate_response(
         return None
 
 
-# Generate a single sample variation
 def generate_single_variation(
-    client, deployment_name, sample_input, sample_output, index
+    client, deployment_name, prompt, sample_output, index
 ):
     prompt = f"""
     Create a new example conversation pair similar to:
 
-    USER: {sample_input}
+    USER: {prompt}
     ASSISTANT: {sample_output}
 
     Your new example should maintain the same tone, style, and type of information but with different content.
@@ -73,12 +75,10 @@ def generate_single_variation(
         "You are a dataset generator creating a diverse conversation example."
     )
 
-    for attempt in range(3):  # Try up to 3 times to get valid JSON
+    for attempt in range(3):  # ERROR CHECKING: Make sure it is valid json, try up to 3 times to get valid JSON
         response = generate_response(client, deployment_name, prompt, system_message)
 
-        # Extract JSON object (if it exists)
         try:
-            # First, try to find a JSON object in the response
             json_match = re.search(r"(\{.*\})", response, re.DOTALL)
             if json_match:
                 json_str = json_match.group(1)
@@ -88,39 +88,35 @@ def generate_single_variation(
         except:
             pass
 
-        # If we're here, we couldn't parse the JSON or it didn't have the right structure
         time.sleep(1)  # Short delay before retrying
 
     # If all attempts failed, create a simple variation
     return {
         "messages": [
-            {"role": "user", "content": f"Variation {index} of: {sample_input}"},
+            {"role": "user", "content": f"Variation {index} of: {prompt}"},
             {"role": "assistant", "content": f"Variation {index} of: {sample_output}"},
         ]
     }
 
 
-# Generate dataset samples
 def generate_dataset_samples(
-    client, deployment_name, sample_input, sample_output, num_samples
+    client, deployment_name, prompt, sample_output, num_samples
 ):
     samples = []
 
-    # Add the original example
     original_sample = {
         "messages": [
-            {"role": "user", "content": sample_input},
+            {"role": "user", "content": prompt},
             {"role": "assistant", "content": sample_output},
         ]
     }
     samples.append(original_sample)
 
-    # Generate variations
     print(f"Generating {num_samples-1} additional samples...")
     for i in range(num_samples - 1):
         print(f"Generating sample {i+2}/{num_samples}...", end="\r")
         sample = generate_single_variation(
-            client, deployment_name, sample_input, sample_output, i + 1
+            client, deployment_name, prompt, sample_output, i + 1
         )
         samples.append(sample)
 
@@ -128,7 +124,6 @@ def generate_dataset_samples(
     return samples
 
 
-# Save dataset to JSONL file
 def save_to_jsonl(samples, filename="dataset.jsonl"):
     with open(filename, "w") as f:
         for sample in samples:
@@ -138,11 +133,14 @@ def save_to_jsonl(samples, filename="dataset.jsonl"):
 
 # Main function
 def main():
-    print("Welcome to the Dataset Generator!")
-    print(
-        "This tool will help you create a dataset for fine-tuning based on your examples."
-    )
-    print("=" * 50)
+    # Read include/prompt.txt, in src/dataset-gen/include
+    prompt_dir = os.path.join( root_dir, "src", "dataset-gen", "include", "prompt.txt")
+    prompt_file = open(prompt_dir, "r")
+    prompt = prompt_file.read()
+    prompt_file.close()
+
+    print("Prompt loaded from include/prompt.txt:")
+    print(prompt)
 
     # Check if the environment variables are set, if not prompt the user
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -164,10 +162,8 @@ def main():
     client, deployment_name = initialize_client()
 
     while True:
-        sample_input = input("\nEnter a sample user message: ")
-
-        print("\nGenerating a sample response...")
-        sample_output = generate_response(client, deployment_name, sample_input)
+        print("\nGenerating a sample response based on prompt...")
+        sample_output = generate_response(client, deployment_name, prompt)
         print(f"\nSample Response:\n{sample_output}")
 
         is_good = input("\nIs this response good? (yes/no): ").lower()
@@ -178,7 +174,7 @@ def main():
             )
 
             improvement_prompt = f"""
-            Original user message: "{sample_input}"
+            Original user message: "{prompt}"
             Previous response: "{sample_output}"
             Feedback: "{feedback}"
 
@@ -209,7 +205,7 @@ def main():
 
         print(f"\nGenerating {num_samples} samples (including your example)...")
         samples = generate_dataset_samples(
-            client, deployment_name, sample_input, sample_output, num_samples
+            client, deployment_name, prompt, sample_output, num_samples
         )
 
         filename = (
@@ -221,23 +217,12 @@ def main():
 
         save_to_jsonl(samples, filename)
 
-        print("\nHere's a preview of your dataset:")
-        with open(filename, "r") as f:
-            preview = [next(f) for _ in range(min(3, num_samples))]
-            for line in preview:
-                print(line.strip())
-                sample = json.loads(line)
-                print(f"USER: {sample['messages'][0]['content']}")
-                print(f"ASSISTANT: {sample['messages'][1]['content']}")
-                print("-" * 50)
-
         continue_generating = input(
-            "\nWould you like to create another dataset? (yes/no): "
+            "\nCreate another dataset? (yes/no): "
         ).lower()
+
         if continue_generating != "yes" and continue_generating != "y":
             break
-
-    print("\nThank you for using the Dataset Generator!")
 
 
 if __name__ == "__main__":
