@@ -19,6 +19,8 @@ const getFirstResponse = (res: ChatCompletion) => {
 
 class AIClient {
     client: AzureOpenAI;
+    summarizerPrompt: string | undefined = undefined;
+    schedulerPrompt: string | undefined = undefined;
 
     constructor() {
         this.client = new AzureOpenAI({
@@ -26,46 +28,72 @@ class AIClient {
             apiVersion: process.env.AZURE_OPENAI_API_VERSION,
             apiKey: process.env.AZURE_OPENAI_API_KEY,
         });
+
+        // read the prompt files, do error handling and close it
+        Bun.file(SUMMARIZER_PROMPT_PATH).text()
+            .then((data) => {
+                this.summarizerPrompt = data;
+            }
+            ).catch((err) => {
+                logger.error('Error reading summarizer prompt file:', err);
+            }
+            );
+
+        Bun.file(SCHEDULER_PROMPT_PATH).text()
+            .then((data) => {
+                this.schedulerPrompt = data;
+            }
+            ).catch((err) => {
+                logger.error('Error reading scheduler prompt file:', err);
+            }
+            );
+    }
+
+    rawSend = async (prompt: string, payload: string) => {
+        const res = await this.client.chat.completions.create({
+            model: '',
+            messages: [
+                { role: 'system', content: prompt },
+                { role: 'user', content: payload },
+            ],
+        });
+
+        const msg = getFirstResponse(res);
+        if (!msg)
+            return new Response(
+                JSON.stringify({ error: 'Failed to get response from OpenAI.' })
+            );
+
+        return msg;
     }
 
     getSummary = async (schedule: string) => {
-        const aiPrompt = await Bun.file(SUMMARIZER_PROMPT_PATH).text();
-
-        const res = await this.client.chat.completions.create({
-            model: '',
-            messages: [
-                { role: 'system', content: aiPrompt },
-                { role: 'user', content: schedule },
-            ],
-        });
-
-        const msg = getFirstResponse(res);
-        if (!msg)
+        if (!this.summarizerPrompt) {
+            logger.error('Summarizer prompt is not loaded.');
             return new Response(
-                JSON.stringify({ error: 'Failed to get response from OpenAI.' })
+                JSON.stringify({ error: 'Summarizer prompt is not loaded.' })
             );
+        }
 
-        return msg;
+        const res = this.rawSend(this.summarizerPrompt, schedule);
+
+        return res;
     };
 
-    getScheduler = async (schedule: string) => {
-        const aiPrompt = await Bun.file(SCHEDULER_PROMPT_PATH).text();
-
-        const res = await this.client.chat.completions.create({
-            model: '',
-            messages: [
-                { role: 'system', content: aiPrompt },
-                { role: 'user', content: schedule },
-            ],
-        });
-
-        const msg = getFirstResponse(res);
-        if (!msg)
+    doScheduling = async (schedule: string) => {
+        if (!this.schedulerPrompt) {
+            logger.error('Scheduler prompt is not loaded.');
             return new Response(
-                JSON.stringify({ error: 'Failed to get response from OpenAI.' })
+                JSON.stringify({ error: 'Scheduler prompt is not loaded.' })
             );
+        }
 
-        return msg;
+        const res = this.rawSend(this.schedulerPrompt, schedule);
+
+        // Here, we would actually parse and get the start time, end time, and others to actually create the event,
+        // but for now, we will just return the response as is.
+
+        return res;
     };
 }
 
