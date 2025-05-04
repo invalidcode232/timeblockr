@@ -3,6 +3,16 @@ import path from 'path';
 import type { ChatCompletion } from 'openai/resources/index.mjs';
 import { logger } from '@azure/identity';
 
+const SUMMARIZER_PATH = path.join(
+    process.cwd(),
+    '/src/include/prompt_summarizer.txt'
+);
+
+const SCHEDULE_PATH = path.join(
+    process.cwd(),
+    '/src/include/prompt_schedule.txt'
+);
+
 const getFirstResponse = (res: ChatCompletion) => {
     return res.choices[0].message.content;
 };
@@ -22,14 +32,10 @@ class AIClient {
 
     getSummary = async (schedule: string) => {
         if (!this.aiPrompt) {
-            const promptPath = path.join(
-                process.cwd(),
-                '/src/include/prompt.txt'
-            );
 
-            this.aiPrompt = await Bun.file(promptPath).text();
+            this.aiPrompt = await Bun.file(SUMMARIZER_PATH).text();
 
-            logger.info('read AI prompt from ' + promptPath);
+            logger.info('read AI prompt from ' + SUMMARIZER_PATH);
         }
 
         const res = await this.client.chat.completions.create({
