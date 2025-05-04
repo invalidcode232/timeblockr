@@ -16,13 +16,7 @@ def initialize_client():
     deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
     if not api_key or not endpoint or not deployment_name:
-        print(
-            "Please set the AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, and AZURE_OPENAI_DEPLOYMENT_NAME environment variables."
-        )
-        print("You can do this by running:")
-        print("export AZURE_OPENAI_API_KEY=your_api_key")
-        print("export AZURE_OPENAI_ENDPOINT=your_endpoint")
-        print("export AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name")
+        print("error: missing required env vars")
         exit(1)
 
     client = AzureOpenAI(
@@ -33,14 +27,14 @@ def initialize_client():
 
 
 def generate_response(
-    client, deployment_name, prompt, system_message="You are a helpful assistant."
+    client, deployment_name, user_prompt, system_message="You are a helpful assistant."
 ):
     try:
         response = client.chat.completions.create(
             model=deployment_name,
             messages=[
                 {"role": "system", "content": system_message},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": user_prompt},
             ],
             temperature=0.7,
         )
@@ -51,12 +45,12 @@ def generate_response(
 
 
 def generate_single_variation(
-    client, deployment_name, prompt, sample_output, index
+    client, deployment_name, user_prompt, sample_output, index
 ):
-    prompt = f"""
+    user_prompt = f"""
     Create a new example conversation pair similar to:
 
-    USER: {prompt}
+    USER: {user_prompt}
     ASSISTANT: {sample_output}
 
     Your new example should maintain the same tone, style, and type of information but with different content.
@@ -76,7 +70,7 @@ def generate_single_variation(
     )
 
     for attempt in range(3):  # ERROR CHECKING: Make sure it is valid json, try up to 3 times to get valid JSON
-        response = generate_response(client, deployment_name, prompt, system_message)
+        response = generate_response(client, deployment_name, user_prompt, system_message)
 
         try:
             json_match = re.search(r"(\{.*\})", response, re.DOTALL)
@@ -93,20 +87,20 @@ def generate_single_variation(
     # If all attempts failed, create a simple variation
     return {
         "messages": [
-            {"role": "user", "content": f"Variation {index} of: {prompt}"},
+            {"role": "user", "content": f"Variation {index} of: {user_prompt}"},
             {"role": "assistant", "content": f"Variation {index} of: {sample_output}"},
         ]
     }
 
 
 def generate_dataset_samples(
-    client, deployment_name, prompt, sample_output, num_samples
+    client, deployment_name, user_prompt, sample_output, num_samples
 ):
     samples = []
 
     original_sample = {
         "messages": [
-            {"role": "user", "content": prompt},
+            {"role": "user", "content": user_prompt},
             {"role": "assistant", "content": sample_output},
         ]
     }
@@ -116,7 +110,7 @@ def generate_dataset_samples(
     for i in range(num_samples - 1):
         print(f"Generating sample {i+2}/{num_samples}...", end="\r")
         sample = generate_single_variation(
-            client, deployment_name, prompt, sample_output, i + 1
+            client, deployment_name, user_prompt, sample_output, i + 1
         )
         samples.append(sample)
 
@@ -136,35 +130,26 @@ def main():
     # Read include/prompt.txt, in src/dataset-gen/include
     prompt_dir = os.path.join( root_dir, "src", "dataset-gen", "include", "prompt.txt")
     prompt_file = open(prompt_dir, "r")
-    prompt = prompt_file.read()
+    user_prompt = prompt_file.read()
     prompt_file.close()
 
     print("Prompt loaded from include/prompt.txt:")
-    print(prompt)
+    print(user_prompt)
 
     # Check if the environment variables are set, if not prompt the user
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     deployment_name = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
 
-    if not api_key:
-        api_key = input("Enter your Azure OpenAI API key: ")
-        os.environ["AZURE_OPENAI_API_KEY"] = api_key
-
-    if not endpoint:
-        endpoint = input("Enter your Azure OpenAI endpoint: ")
-        os.environ["AZURE_OPENAI_ENDPOINT"] = endpoint
-
-    if not deployment_name:
-        deployment_name = input("Enter your Azure OpenAI deployment name: ")
-        os.environ["AZURE_OPENAI_DEPLOYMENT_NAME"] = deployment_name
+    if not api_key or not endpoint or not deployment_name:
+        print("error: missing required env vars")
 
     client, deployment_name = initialize_client()
 
     while True:
         print("\nGenerating a sample response based on prompt...")
-        sample_output = generate_response(client, deployment_name, prompt)
-        print(f"\nSample Response:\n{sample_output}")
+        output = generate_response(client, deployment_name, user_prompt)
+        print(f"\nSample Response:\n{output}")
 
         is_good = input("\nIs this response good? (yes/no): ").lower()
 
@@ -174,21 +159,21 @@ def main():
             )
 
             improvement_prompt = f"""
-            Original user message: "{prompt}"
-            Previous response: "{sample_output}"
+            Original user message: "{user_prompt}"
+            Previous response: "{output}"
             Feedback: "{feedback}"
 
             Please provide an improved response based on the feedback.
             """
 
             print("\nGenerating an improved response...")
-            sample_output = generate_response(
+            output = generate_response(
                 client,
                 deployment_name,
                 improvement_prompt,
                 "You are revising a response based on user feedback.",
             )
-            print(f"\nRevised Response:\n{sample_output}")
+            print(f"\nRevised Response:\n{output}")
 
             is_good = input("\nIs this response good? (yes/no): ").lower()
 
@@ -196,16 +181,14 @@ def main():
         while num_samples <= 0:
             try:
                 num_samples = int(
-                    input("\nHow many total samples would you like to generate? ")
+                    input("\nSample size: ")
                 )
-                if num_samples <= 0:
-                    print("Please enter a positive number.")
             except ValueError:
                 print("Please enter a valid number.")
 
         print(f"\nGenerating {num_samples} samples (including your example)...")
         samples = generate_dataset_samples(
-            client, deployment_name, prompt, sample_output, num_samples
+            client, deployment_name, user_prompt, output, num_samples
         )
 
         filename = (

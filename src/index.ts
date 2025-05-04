@@ -11,9 +11,15 @@ const main = async () => {
     // and the entities from the user input
     // The intent would determine which external API to call
     // For example, if the user wants to hike, we would call the weather API during the specific time
-    // We would parse userInput to get the intent, entities, and time and pass them to payload.
+    // We would parse userInput to get the intent, entities, and time.
     // 
     // e.g. if intent = hike and time = 9 PM on Tuesday, we would call the weather API, to get the specified weather
+    // put into newEvent
+    // newEvent will then be passed to AIPayload
+
+    const sampleNewEvent: CalendarEvent = {
+        summary: userInput,
+    }
 
     const gClient = new GoogleClient();
     const aiClient = new AIClient();
@@ -38,10 +44,6 @@ const main = async () => {
         'c, conditionId: ' +
         weather.conditionId.toString()
     );
-
-    const sampleNewEvent: CalendarEvent = {
-        summary: userInput,
-    }
 
     const aiPayload: AISchedulerPayload = {
         currentTemperature: weather.temp.cur,
