@@ -10,7 +10,9 @@
         "typescript": "^5.0.0"
     },
     "scripts": {
-        "index": "bun src/index.ts"
+        "index": "bun src/index.ts",
+        "datagen-install": "uv venv --python=python3.11 && uv pip install -r src/dataset-gen/requirements.txt",
+        "datagen": "uv run ./src/dataset-gen/index.py"
     },
     "dependencies": {
         "@azure/identity": "^4.6.0",
