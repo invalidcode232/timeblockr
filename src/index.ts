@@ -18,15 +18,15 @@ const main = async () => {
 
     logger.info(
         'successfully received events - event count: ' +
-            events.length.toString()
+        events.length.toString()
     );
 
     const weather = await weatherClient.getWeather();
     logger.info(
         'successfully received weather data - current weather: ' +
-            weather.temp.cur.toString() +
-            'c, conditionId: ' +
-            weather.conditionId.toString()
+        weather.temp.cur.toString() +
+        'c, conditionId: ' +
+        weather.conditionId.toString()
     );
 
     const aiPayload: AIPayload = {
