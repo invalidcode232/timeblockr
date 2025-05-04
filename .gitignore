@@ -179,3 +179,5 @@ credentials/
 combined.log
 error.log
 
+src/dataset-gen/.venv
+
