@@ -5,6 +5,16 @@ import WeatherClient from './libs/weather';
 import type { AISummarizerPayload, AISchedulerPayload, CalendarEvent } from './types/types';
 
 const main = async () => {
+    const userInput = "Do math homework"; // example user input
+
+    // In the future, we will run this through an NLP model to get the intent
+    // and the entities from the user input
+    // The intent would determine which external API to call
+    // For example, if the user wants to hike, we would call the weather API during the specific time
+    // We would parse userInput to get the intent, entities, and time and pass them to payload.
+    // 
+    // e.g. if intent = hike and time = 9 PM on Tuesday, we would call the weather API, to get the specified weather
+
     const gClient = new GoogleClient();
     const aiClient = new AIClient();
     const weatherClient = new WeatherClient();
@@ -30,7 +40,7 @@ const main = async () => {
     );
 
     const sampleNewEvent: CalendarEvent = {
-        summary: 'Do math homework',
+        summary: userInput,
     }
 
     const aiPayload: AISchedulerPayload = {
@@ -40,7 +50,7 @@ const main = async () => {
         newEvent: sampleNewEvent,
     };
 
-    const schedulerRes = await aiClient.getScheduler(JSON.stringify(aiPayload));
+    const schedulerRes = await aiClient.doScheduling(JSON.stringify(aiPayload));
 
     logger.info('successfully received response from llm');
 
