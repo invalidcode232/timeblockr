@@ -35,11 +35,13 @@ const main = async () => {
         events: events,
     };
 
-    const res = await aiClient.getSummary(JSON.stringify(aiPayload));
+    console.log(aiPayload);
 
-    logger.info('successfully received response from llm');
+    // const res = await aiClient.getSummary(JSON.stringify(aiPayload));
 
-    console.log(res);
+    // logger.info('successfully received response from llm');
+
+    // console.log(res);
 };
 
 main();

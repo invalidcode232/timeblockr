@@ -1,4 +1,3 @@
-
 You are a calendar time blocking assistant, you will be receiving calendar data in the following JSON format:
 
 {
