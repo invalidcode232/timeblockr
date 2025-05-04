@@ -3,9 +3,14 @@ import logger from './utils/logging';
 import AIClient from './libs/openai';
 import WeatherClient from './libs/weather';
 import type { AISummarizerPayload, AISchedulerPayload, CalendarEvent } from './types/types';
+import prompts from 'prompts';
 
 const main = async () => {
-    const userInput = "Do math homework"; // example user input
+    const userInput = await prompts({
+        type: 'text',
+        name: 'value',
+        message: 'What do you want to do?',
+    }).then((res) => res.value);
 
     // In the future, we will run this through an NLP model to get the intent
     // and the entities from the user input
