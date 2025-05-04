@@ -4,10 +4,24 @@ type CalendarEvent = {
     endTime?: string | null;
 };
 
-interface AIPayload {
+type NewEvent = {
+    summary: string;
+    startTime?: string | null;
+    endTime?: string | null;
+    location?: string | null;
+};
+
+interface AISummarizerPayload {
     currentCondition: string;
     currentTemperature: number;
     events: CalendarEvent[];
 }
 
-export type { CalendarEvent, AIPayload };
+interface AISchedulerPayload {
+    currentCondition: string;
+    currentTemperature: number;
+    events: CalendarEvent[];
+    newEvent?: NewEvent;
+}
+
+export type { CalendarEvent, AISummarizerPayload, AISchedulerPayload };
