@@ -18,10 +18,12 @@
         "@azure/identity": "^4.6.0",
         "@azure/openai": "^2.0.0",
         "@google-cloud/local-auth": "^3.0.1",
+        "@types/prompts": "npm:@types/prompts",
         "google-auth-library": "^9.15.1",
         "googleapis": "^144.0.0",
         "openai": "^4.83.0",
         "openweather-api-node": "^3.1.5",
+        "prompts": "npm:prompts",
         "winston": "^3.17.0"
     }
 }
