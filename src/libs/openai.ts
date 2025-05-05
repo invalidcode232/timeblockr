@@ -2,6 +2,10 @@ import { AzureOpenAI } from 'openai/index.mjs';
 import path from 'path';
 import type { ChatCompletion } from 'openai/resources/index.mjs';
 import { logger } from '@azure/identity';
+import {
+    AISummarizerResultSchema,
+    type AISchedulerPayload,
+} from '../types/types';
 
 const SUMMARIZER_PROMPT_PATH = path.join(
     process.cwd(),
@@ -30,23 +34,23 @@ class AIClient {
         });
 
         // read the prompt files, do error handling and close it
-        Bun.file(SUMMARIZER_PROMPT_PATH).text()
+        Bun.file(SUMMARIZER_PROMPT_PATH)
+            .text()
             .then((data) => {
                 this.summarizerPrompt = data;
-            }
-            ).catch((err) => {
+            })
+            .catch((err) => {
                 logger.error('Error reading summarizer prompt file:', err);
-            }
-            );
+            });
 
-        Bun.file(SCHEDULER_PROMPT_PATH).text()
+        Bun.file(SCHEDULER_PROMPT_PATH)
+            .text()
             .then((data) => {
                 this.schedulerPrompt = data;
-            }
-            ).catch((err) => {
+            })
+            .catch((err) => {
                 logger.error('Error reading scheduler prompt file:', err);
-            }
-            );
+            });
     }
 
     rawSend = async (prompt: string, payload: string) => {
@@ -59,13 +63,13 @@ class AIClient {
         });
 
         const msg = getFirstResponse(res);
-        if (!msg)
-            return new Response(
-                JSON.stringify({ error: 'Failed to get response from OpenAI.' })
-            );
+        if (!msg) {
+            logger.error('No response from OpenAI.');
+            return;
+        }
 
         return msg;
-    }
+    };
 
     getSummary = async (schedule: string) => {
         if (!this.summarizerPrompt) {
@@ -74,26 +78,56 @@ class AIClient {
                 JSON.stringify({ error: 'Summarizer prompt is not loaded.' })
             );
         }
-
         const res = this.rawSend(this.summarizerPrompt, schedule);
 
         return res;
     };
 
-    doScheduling = async (schedule: string) => {
+    doScheduling = async (schedulerPayload: AISchedulerPayload) => {
         if (!this.schedulerPrompt) {
             logger.error('Scheduler prompt is not loaded.');
-            return new Response(
-                JSON.stringify({ error: 'Scheduler prompt is not loaded.' })
-            );
+            return;
         }
 
-        const res = this.rawSend(this.schedulerPrompt, schedule);
+        const payloadString = JSON.stringify(schedulerPayload);
+        const dataRes = await this.rawSend(this.schedulerPrompt, payloadString);
+        if (!dataRes) {
+            logger.error('No response from OpenAI.');
+            return;
+        }
 
         // Here, we would actually parse and get the start time, end time, and others to actually create the event,
         // but for now, we will just return the response as is.
 
-        return res;
+        const dataParse = AISummarizerResultSchema.safeParse(
+            JSON.parse(dataRes)
+        );
+        if (!dataParse.success) {
+            logger.info(dataRes);
+            logger.error(
+                'Error parsing response from OpenAI:',
+                dataParse.error
+            );
+
+            return;
+        }
+
+        const validData = dataParse.data;
+
+        // Convert date strings to Date objects
+        const result = {
+            ...validData,
+            // Convert startTime to Date if it exists
+            startTime: validData.startTime
+                ? new Date(validData.startTime)
+                : undefined,
+            // Convert endTime to Date if it exists
+            endTime: validData.endTime
+                ? new Date(validData.endTime)
+                : undefined,
+        };
+
+        return result;
     };
 }
 

@@ -1,6 +1,7 @@
 import { authorize } from '../utils/auth';
 import type { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
+import type { calendar_v3 } from 'googleapis';
 import type { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
 import type { CalendarEvent } from '../types/types';
 import logger from '../utils/logging';
@@ -48,11 +49,49 @@ class GoogleClient {
                     startTime: event.start?.dateTime,
                     endTime: event.end?.dateTime,
                     summary: event?.summary,
+                    location: event?.location,
                 });
             }
         });
 
         return events;
+    };
+
+    addEvent = async (event: CalendarEvent) => {
+        if (!this.client) {
+            this.auth();
+        }
+
+        const calendar = google.calendar({
+            version: 'v3',
+            auth: this.client as OAuth2Client,
+        });
+
+        let requestBody: calendar_v3.Schema$Event = {
+            summary: event.summary,
+            start: {
+                dateTime: event.startTime,
+            },
+            end: {
+                dateTime: event.endTime,
+            },
+        };
+
+        if (event.location) {
+            requestBody = {
+                ...requestBody,
+                location: event.location,
+            };
+        }
+
+        // We would modify external data here if it's there
+
+        const res = await calendar.events.insert({
+            calendarId: 'primary',
+            requestBody,
+        });
+
+        return res.data;
     };
 }
 
