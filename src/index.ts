@@ -85,7 +85,8 @@ const main = async () => {
     logger.info('response from llm: ' + JSON.stringify(schedulerRes, null, 4));
 
     logger.info('startTime: ', schedulerRes.startTime);
-    logger.info('startTime: ', schedulerRes.endTime);
+    logger.info('endTime: ', schedulerRes.endTime);
+
     const newEvent: CalendarEvent = {
         summary: userInput,
         startTime: schedulerRes.startTime?.toISOString(),
