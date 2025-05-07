@@ -9,93 +9,165 @@ import type {
 } from './types/types';
 import prompts from 'prompts';
 
-const main = async () => {
-    const userInput = await prompts({
-        type: 'text',
-        name: 'value',
-        message: 'What do you want to do?',
-    }).then((res) => res.value);
+// Configuration interface
+interface Config {
+    maxRetries: number;
+    cacheDuration: number;
+}
 
-    // In the future, we will run this through an NLP model to get the intent
-    // and the entities from the user input
-    // The intent would determine which external API to call
-    // For example, if the user wants to hike, we would call the weather API during the specific time
-    // We would parse userInput to get the intent, entities, and time.
-    //
-    // e.g. if intent = hike and time = 9 PM on Tuesday, we would call the weather API, to get the specified weather
-    // put into newEvent
-    // newEvent will then be passed to AIPayload
+// Default configuration
+const config: Config = {
+    maxRetries: 3,
+    cacheDuration: 5 * 60 * 1000, // 5 minutes in milliseconds
+};
 
-    const sampleNewEvent: CalendarEvent = {
-        summary: userInput,
+// Cache for weather and calendar data
+interface WeatherData {
+    temp: {
+        cur: number;
     };
+    conditionId: number;
+}
 
-    const gClient = new GoogleClient();
-    const aiClient = new AIClient();
-    const weatherClient = new WeatherClient();
+const cache = {
+    weather: null as WeatherData | null,
+    weatherTimestamp: 0,
+    events: null as CalendarEvent[] | null,
+    eventsTimestamp: 0,
+};
 
-    await gClient.auth();
+// Validate user input
+const validateUserInput = (input: string): boolean => {
+    if (!input || input.trim().length === 0) {
+        logger.error('Invalid user input: empty or whitespace only');
+        return false;
+    }
+    return true;
+};
 
-    logger.info('authentication successful');
-
-    const events = await gClient.getEvents();
-    if (!events) return;
-
-    logger.info(
-        'successfully received events - event count: ' +
-            events.length.toString()
-    );
+// Get weather data with caching
+const getWeatherData = async (weatherClient: WeatherClient) => {
+    const now = Date.now();
+    if (cache.weather && now - cache.weatherTimestamp < config.cacheDuration) {
+        logger.info('Using cached weather data');
+        return cache.weather;
+    }
 
     const weather = await weatherClient.getWeather();
-    logger.info(
-        'successfully received weather data - current weather: ' +
-            weather.temp.cur.toString() +
-            'c, conditionId: ' +
-            weather.conditionId.toString()
-    );
+    cache.weather = weather;
+    cache.weatherTimestamp = now;
+    return weather;
+};
 
-    const aiSummarizerPayload: AISummarizerPayload = {
-        currentCondition: WeatherClient.getConditionFromId(weather.conditionId),
-        currentTemperature: weather.temp.cur,
-        events: events,
-        currentDate: new Date().toISOString(),
-    };
+// Get calendar events with caching
+const getCalendarEvents = async (gClient: GoogleClient) => {
+    const now = Date.now();
+    if (cache.events && now - cache.eventsTimestamp < config.cacheDuration) {
+        logger.info('Using cached calendar events');
+        return cache.events;
+    }
 
-    const summarizerRes = await aiClient.getSummary(
-        JSON.stringify(aiSummarizerPayload)
-    );
+    const events = await gClient.getEvents();
+    if (!events) {
+        throw new Error('Failed to fetch calendar events');
+    }
+    cache.events = events;
+    cache.eventsTimestamp = now;
+    return events;
+};
 
-    logger.info('retrieved summary data');
-    logger.info(summarizerRes);
-
+// Process AI scheduling
+const processAIScheduling = async (
+    aiClient: AIClient,
+    events: CalendarEvent[],
+    userInput: string
+) => {
     const aiSchedulerPayload: AISchedulerPayload = {
-        events: events,
-        newEvent: sampleNewEvent,
+        events,
+        newEvent: { summary: userInput },
         currentDate: new Date().toISOString(),
     };
 
     const schedulerRes = await aiClient.doScheduling(aiSchedulerPayload);
-
     if (!schedulerRes) {
-        logger.error('failed to add new scheduling');
-        return;
+        throw new Error('Failed to process AI scheduling');
     }
 
-    logger.info('successfully received response from llm');
-    logger.info('response from llm: ' + JSON.stringify(schedulerRes, null, 4));
+    console.log(schedulerRes);
 
-    logger.info('startTime: ', schedulerRes.startTime);
-    logger.info('endTime: ', schedulerRes.endTime);
-
-    const newEvent: CalendarEvent = {
+    return {
         summary: userInput,
         startTime: schedulerRes.startTime?.toISOString(),
         endTime: schedulerRes.endTime?.toISOString(),
-        // we would also add location here
     };
-
-    const addRes = await gClient.addEvent(newEvent);
-    logger.info('successfully added event: ', JSON.stringify(addRes, null, 4));
 };
 
-main();
+const main = async () => {
+    try {
+        // Initialize clients
+        const gClient = new GoogleClient();
+        const aiClient = new AIClient();
+        const weatherClient = new WeatherClient();
+
+        // Authenticate with Google
+        await gClient.auth();
+        logger.info('Authentication successful');
+
+        // Get user input
+        const { value: userInput } = await prompts({
+            type: 'text',
+            name: 'value',
+            message: 'What do you want to do?',
+        });
+
+        if (!validateUserInput(userInput)) {
+            return;
+        }
+
+        // Fetch data with caching
+        const [events, weather] = await Promise.all([
+            getCalendarEvents(gClient),
+            getWeatherData(weatherClient),
+        ]);
+
+        logger.info(`Successfully received ${events.length} events`);
+        logger.info(
+            `Current weather: ${weather.temp.cur}°C, condition: ${WeatherClient.getConditionFromId(
+                weather.conditionId
+            )}`
+        );
+
+        // Get AI summary
+        const aiSummarizerPayload: AISummarizerPayload = {
+            currentCondition: WeatherClient.getConditionFromId(weather.conditionId),
+            currentTemperature: weather.temp.cur,
+            events,
+            currentDate: new Date().toISOString(),
+        };
+
+        const summarizerRes = await aiClient.getSummary(
+            JSON.stringify(aiSummarizerPayload)
+        );
+
+        logger.info('Retrieved summary:', summarizerRes);
+
+        // Process scheduling
+        const newEvent = await processAIScheduling(aiClient, events, userInput);
+
+        // Add event to calendar
+        const addRes = await gClient.addEvent(newEvent);
+        logger.info('Successfully added event:', JSON.stringify(addRes, null, 4));
+        console.log('addRes');
+        console.log(JSON.stringify(addRes, null, 4));
+
+    } catch (error) {
+        logger.error('An error occurred:', error);
+        process.exit(1);
+    }
+};
+
+// Run the application
+main().catch((error) => {
+    logger.error('Fatal error:', error);
+    process.exit(1);
+});
