@@ -149,16 +149,14 @@ const main = async () => {
             JSON.stringify(aiSummarizerPayload)
         );
 
-        logger.info('Retrieved summary:', summarizerRes);
+        logger.info(`Retrieved summary: ${JSON.stringify(summarizerRes, null, 2)}`);
 
         // Process scheduling
         const newEvent = await processAIScheduling(aiClient, events, userInput);
 
         // Add event to calendar
         const addRes = await gClient.addEvent(newEvent);
-        logger.info('Successfully added event:', JSON.stringify(addRes, null, 4));
-        console.log('addRes');
-        console.log(JSON.stringify(addRes, null, 4));
+        logger.info(`Successfully added event: ${JSON.stringify(addRes, null, 2)}`);
 
     } catch (error) {
         logger.error('An error occurred:', error);
