@@ -4,18 +4,8 @@ import AIClient from './libs/openai';
 import WeatherClient from './libs/weather';
 import Scheduler from './libs/scheduler';
 import type {
-    AISummarizerPayload,
     CalendarEvent,
-    IntentPayload,
-    IntentResult,
-    AddEventPayload,
-    UpdateEventPayload,
-    CancelEventPayload,
-    FeedbackPayload,
     AddEventResult,
-    UpdateEventResult,
-    CancelEventResult,
-    FeedbackResult
 } from './types/types';
 import { Intent } from './types/types';
 import prompts from 'prompts';
