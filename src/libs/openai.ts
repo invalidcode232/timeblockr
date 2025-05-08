@@ -24,114 +24,105 @@ import {
 } from '../types/types';
 import validatePayload from '../utils/validate';
 
-const SUMMARIZER_PROMPT_PATH = path.join(
-    process.cwd(),
-    '/src/include/prompt_summarizer.txt'
-);
-
-const SCHEDULER_PROMPT_PATH = path.join(
-    process.cwd(),
-    '/src/include/prompt_scheduler.txt'
-);
-
-const getFirstResponse = (res: ChatCompletion) => {
-    return res.choices[0].message.content;
-};
+const PROMPT_PATHS = {
+    summarizer: path.join(process.cwd(), '/src/include/prompt_summarizer.txt'),
+    scheduler: path.join(process.cwd(), '/src/include/prompt_scheduler.txt')
+} as const;
 
 class AIClient {
-    client: AzureOpenAI;
-    summarizerPrompt: string | undefined = undefined;
-    schedulerPrompt: string | undefined = undefined;
+    private readonly client: AzureOpenAI;
+    private prompts: {
+        summarizer?: string;
+        scheduler?: string;
+    } = {};
 
     constructor() {
+        if (!process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 
+            !process.env.AZURE_OPENAI_API_VERSION || 
+            !process.env.AZURE_OPENAI_API_KEY) {
+            throw new Error('Missing required Azure OpenAI environment variables');
+        }
+
         this.client = new AzureOpenAI({
             deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
             apiVersion: process.env.AZURE_OPENAI_API_VERSION,
             apiKey: process.env.AZURE_OPENAI_API_KEY,
         });
 
-        // read the prompt files, do error handling and close it
-        Bun.file(SUMMARIZER_PROMPT_PATH)
-            .text()
-            .then((data) => {
-                this.summarizerPrompt = data;
-            })
-            .catch((err) => {
-                logger.error('Error reading summarizer prompt file:', err);
-            });
-
-        Bun.file(SCHEDULER_PROMPT_PATH)
-            .text()
-            .then((data) => {
-                this.schedulerPrompt = data;
-            })
-            .catch((err) => {
-                logger.error('Error reading scheduler prompt file:', err);
-            });
+        this.initializePrompts().catch(err => {
+            logger.error('Failed to initialize prompts:', err);
+            throw err;
+        });
     }
 
-    rawSend = async (prompt: string, payload: string) => {
-        logger.debug(`Sending payload to OpenAI: ${payload}`);
+    private async initializePrompts(): Promise<void> {
+        try {
+            const [summarizerPrompt, schedulerPrompt] = await Promise.all([
+                Bun.file(PROMPT_PATHS.summarizer).text(),
+                Bun.file(PROMPT_PATHS.scheduler).text()
+            ]);
 
-        const res = await this.client.chat.completions.create({
-            model: '',
-            messages: [
-                { role: 'system', content: prompt },
-                { role: 'user', content: payload },
-            ],
-        });
+            this.prompts = {
+                summarizer: summarizerPrompt,
+                scheduler: schedulerPrompt
+            };
+        } catch (err) {
+            logger.error('Error loading prompt files:', err);
+            throw new Error('Failed to initialize prompts');
+        }
+    }
 
-
-        const msg = getFirstResponse(res);
-        if (!msg) {
-            logger.error('No response from OpenAI.');
-            return;
+    private async rawSend(prompt: string, payload: string): Promise<string> {
+        if (!prompt) {
+            throw new Error('Prompt is required');
         }
 
-        logger.debug(`Received response from OpenAI: ${msg}`);
+        logger.debug('Sending payload to OpenAI:', { payload });
 
-        return msg;
-    };
+        try {
+            const res = await this.client.chat.completions.create({
+                model: '',
+                messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: payload },
+                ],
+            });
 
-    getSummary = async (payload: AISummarizerPayload) => {
-        if (!this.summarizerPrompt) {
-            logger.error('Summarizer prompt is not loaded.');
-            return new Response(
-                JSON.stringify({ error: 'Summarizer prompt is not loaded.' })
-            );
+            const msg = res.choices[0]?.message?.content;
+            if (!msg) {
+                throw new Error('Empty response from OpenAI');
+            }
+
+            logger.debug('Received response from OpenAI:', { response: msg });
+            return msg;
+        } catch (err) {
+            logger.error('OpenAI API error:', err);
+            throw new Error('Failed to get response from OpenAI');
+        }
+    }
+
+    async getSummary(payload: AISummarizerPayload): Promise<string> {
+        if (!this.prompts.summarizer) {
+            throw new Error('Summarizer prompt not initialized');
         }
 
         const validatedPayload = validatePayload(payload, AISummarizerPayloadSchema);
-        
-        const res = this.rawSend(this.summarizerPrompt, JSON.stringify(validatedPayload));
-
-        return res;
-    };
+        return this.rawSend(this.prompts.summarizer, JSON.stringify(validatedPayload));
+    }
 
     private async handleAddEvent(payload: AddEventPayload): Promise<IntentResult> {
+        if (!this.prompts.scheduler) {
+            throw new Error('Scheduler prompt not initialized');
+        }
+
         const validatedPayload = validatePayload(payload, AddEventPayloadSchema);
+        const dataRes = await this.rawSend(this.prompts.scheduler, JSON.stringify(validatedPayload));
         
-        if (!this.schedulerPrompt) {
-            logger.error('Scheduler prompt is not loaded.');
-            throw new Error('Scheduler prompt is not loaded');
-        }
-
-        const payloadString = JSON.stringify(validatedPayload);
-
-        const dataRes = await this.rawSend(this.schedulerPrompt, payloadString);
-        if (!dataRes) {
-            logger.error('No response from OpenAI.');
-            throw new Error('No response from OpenAI');
-        }
-
         const validatedResult = validatePayload(JSON.parse(dataRes), AddEventResultSchema);
-
-        const result: IntentResult = {
+        return {
             type: Intent.ADD_EVENT,
             result: validatedResult
         };
-
-        return result;
     }
 
     private async handleUpdateEvent(payload: UpdateEventPayload): Promise<IntentResult> {
@@ -153,20 +144,24 @@ class AIClient {
     }
 
     async processIntent(intent: Intent, payload: IntentPayload): Promise<IntentResult> {
-        logger.debug(`Processing intent: ${intent}`);
-        switch (intent) {
-            case Intent.ADD_EVENT:
-                return this.handleAddEvent(payload as AddEventPayload);
-            case Intent.UPDATE_EVENT:
-                return this.handleUpdateEvent(payload as UpdateEventPayload);
-            case Intent.CANCEL_EVENT:
-                return this.handleCancelEvent(payload as CancelEventPayload);
-            case Intent.FEEDBACK:
-                return this.handleFeedback(payload as FeedbackPayload);
-            // case Intent.SUMMARY: TODO: Finish this
-            //     return this.handleSummary(payload as AISummarizerPayload);
-            default:
-                throw new Error('Invalid intent');
+        logger.debug('Processing intent:', { intent, payload });
+
+        try {
+            switch (intent) {
+                case Intent.ADD_EVENT:
+                    return this.handleAddEvent(payload as AddEventPayload);
+                case Intent.UPDATE_EVENT:
+                    return this.handleUpdateEvent(payload as UpdateEventPayload);
+                case Intent.CANCEL_EVENT:
+                    return this.handleCancelEvent(payload as CancelEventPayload);
+                case Intent.FEEDBACK:
+                    return this.handleFeedback(payload as FeedbackPayload);
+                default:
+                    throw new Error(`Invalid intent: ${intent}`);
+            }
+        } catch (err) {
+            logger.error('Error processing intent:', { intent, error: err });
+            throw err;
         }
     }
 }
