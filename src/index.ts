@@ -103,7 +103,7 @@ const main = async () => {
 
     // #region Summarizer
     const summary = await scheduler.getSummary();
-    logger.info(`Retrieved summary: ${JSON.stringify(summary, null, 4)}`);
+    logger.info(`Retrieved summary: ${JSON.stringify(summary, null, 4).replace(/\\n/g, '\n')}`);
     // #endregion
 
     // #region Scheduler
@@ -122,7 +122,7 @@ const main = async () => {
         const addRes = await gClient.addEvent(newEvent);
         logger.debug(`addRes:\n${JSON.stringify(addRes, null, 4)}`);
 
-        logger.info(`Added event to calendar. Justification: ${addEventResult.message}`);
+        logger.info(`Added event to calendar. Message:\n${addEventResult.message}`);
     }
     // #endregion
 };
