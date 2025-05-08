@@ -1,4 +1,4 @@
-import { AzureOpenAI } from 'openai/index.mjs';
+import { OpenAI } from 'openai/index.mjs';
 import path from 'path';
 import type { ChatCompletion } from 'openai/resources/index.mjs';
 import logger from '../utils/logging';
@@ -15,76 +15,63 @@ import {
     CancelEventPayloadSchema,
     FeedbackPayloadSchema,
     AddEventResultSchema,
-    // UpdateEventResultSchema,
-    // CancelEventResultSchema,
-    // FeedbackResultSchema,
+    UpdateEventResultSchema,
+    CancelEventResultSchema,
+    FeedbackResultSchema,
     Intent,
     type AISummarizerPayload,
     AISummarizerPayloadSchema
 } from '../types/types';
 import validatePayload from '../utils/validate';
 
-const PROMPT_PATHS = {
-    summarizer: path.join(process.cwd(), '/src/include/prompt_summarizer.txt'),
-    scheduler: path.join(process.cwd(), '/src/include/prompt_scheduler.txt')
-} as const;
-
 class AIClient {
-    private readonly client: AzureOpenAI;
-    private prompts: {
-        summarizer?: string;
-        scheduler?: string;
-    } = {};
+    private readonly client: OpenAI;
+    private prompt: string = '';
 
     constructor() {
-        if (!process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 
-            !process.env.AZURE_OPENAI_API_VERSION || 
-            !process.env.AZURE_OPENAI_API_KEY) {
-            throw new Error('Missing required Azure OpenAI environment variables');
+        if (!process.env.OPENROUTER_API_KEY) {
+            throw new Error('Missing required OpenRouter API key');
         }
 
-        this.client = new AzureOpenAI({
-            deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
-            apiVersion: process.env.AZURE_OPENAI_API_VERSION,
-            apiKey: process.env.AZURE_OPENAI_API_KEY,
-            endpoint: process.env.AZURE_OPENAI_ENDPOINT
+        this.client = new OpenAI({
+            baseURL: 'https://openrouter.ai/api/v1',
+            apiKey: process.env.OPENROUTER_API_KEY,
+            defaultHeaders: {
+                'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
+                'X-Title': process.env.SITE_NAME || 'TimeBlockr',
+            },
         });
 
-        this.initializePrompts().catch(err => {
-            logger.error('Failed to initialize prompts:', err);
+        this.initializePrompt().catch(err => {
+            logger.error('Failed to initialize prompt:', err);
             throw err;
         });
     }
 
-    private async initializePrompts(): Promise<void> {
+    private async initializePrompt(): Promise<void> {
         try {
-            const [summarizerPrompt, schedulerPrompt] = await Promise.all([
-                Bun.file(PROMPT_PATHS.summarizer).text(),
-                Bun.file(PROMPT_PATHS.scheduler).text()
-            ]);
-
-            this.prompts = {
-                summarizer: summarizerPrompt,
-                scheduler: schedulerPrompt
-            };
+            const promptPath = path.join(process.cwd(), 'src', 'include', 'prompt.txt');
+            this.prompt = await Bun.file(promptPath).text();
         } catch (err) {
-            logger.error('Error loading prompt files:', err);
-            throw new Error('Failed to initialize prompts');
+            logger.error('Error loading prompt file:', err);
+            throw new Error('Failed to initialize prompt');
         }
     }
 
-    private async rawSend(prompt: string, payload: string): Promise<string> {
-        if (!prompt) {
-            throw new Error('Prompt is required');
+    private async rawSend(payload: string): Promise<string> {
+        if (!this.prompt) {
+            throw new Error('Prompt is not initialized');
         }
 
         logger.debug('Sending payload to OpenAI:', { payload });
 
         try {
             const res = await this.client.chat.completions.create({
-                model: '',
+                // model: 'anthropic/claude-3-opus-20240229', // Using Claude 3 Opus as the default model
+                // model: 'openai/gpt-4o-mini',
+                model: 'meta-llama/llama-4-maverick',
                 messages: [
-                    { role: 'system', content: prompt },
+                    { role: 'system', content: this.prompt },
                     { role: 'user', content: payload },
                 ],
             });
@@ -103,21 +90,14 @@ class AIClient {
     }
 
     async getSummary(payload: AISummarizerPayload): Promise<string> {
-        if (!this.prompts.summarizer) {
-            throw new Error('Summarizer prompt not initialized');
-        }
-
         const validatedPayload = validatePayload(payload, AISummarizerPayloadSchema);
-        return this.rawSend(this.prompts.summarizer, JSON.stringify(validatedPayload));
+        const response = await this.rawSend(JSON.stringify(validatedPayload));
+        return response;
     }
 
     private async handleAddEvent(payload: AddEventPayload): Promise<IntentResult> {
-        if (!this.prompts.scheduler) {
-            throw new Error('Scheduler prompt not initialized');
-        }
-
         const validatedPayload = validatePayload(payload, AddEventPayloadSchema);
-        const dataRes = await this.rawSend(this.prompts.scheduler, JSON.stringify(validatedPayload));
+        const dataRes = await this.rawSend(JSON.stringify(validatedPayload));
         
         const validatedResult = validatePayload(JSON.parse(dataRes), AddEventResultSchema);
         return {
@@ -128,20 +108,35 @@ class AIClient {
 
     private async handleUpdateEvent(payload: UpdateEventPayload): Promise<IntentResult> {
         const validatedPayload = validatePayload(payload, UpdateEventPayloadSchema);
-        // TODO: Implement update event logic
-        throw new Error('Update event not implemented yet');
+        const dataRes = await this.rawSend(JSON.stringify(validatedPayload));
+        
+        const validatedResult = validatePayload(JSON.parse(dataRes), UpdateEventResultSchema);
+        return {
+            type: Intent.UPDATE_EVENT,
+            result: validatedResult
+        };
     }
 
     private async handleCancelEvent(payload: CancelEventPayload): Promise<IntentResult> {
         const validatedPayload = validatePayload(payload, CancelEventPayloadSchema);
-        // TODO: Implement cancel event logic
-        throw new Error('Cancel event not implemented yet');
+        const dataRes = await this.rawSend(JSON.stringify(validatedPayload));
+        
+        const validatedResult = validatePayload(JSON.parse(dataRes), CancelEventResultSchema);
+        return {
+            type: Intent.CANCEL_EVENT,
+            result: validatedResult
+        };
     }
 
     private async handleFeedback(payload: FeedbackPayload): Promise<IntentResult> {
         const validatedPayload = validatePayload(payload, FeedbackPayloadSchema);
-        // TODO: Implement feedback logic
-        throw new Error('Feedback not implemented yet');
+        const dataRes = await this.rawSend(JSON.stringify(validatedPayload));
+        
+        const validatedResult = validatePayload(JSON.parse(dataRes), FeedbackResultSchema);
+        return {
+            type: Intent.FEEDBACK,
+            result: validatedResult
+        };
     }
 
     async processIntent(intent: Intent, payload: IntentPayload): Promise<IntentResult> {

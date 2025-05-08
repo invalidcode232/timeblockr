@@ -31,7 +31,6 @@ class Scheduler {
     private googleClient: GoogleClient;
     private cache: Cache;
     private readonly cacheDuration: number;
-    private readonly promptPath: string;
 
     constructor(
         aiClient: AIClient, 
@@ -43,7 +42,6 @@ class Scheduler {
         this.weatherClient = weatherClient;
         this.googleClient = googleClient;
         this.cacheDuration = cacheDuration;
-        this.promptPath = path.join(process.cwd(), 'src', 'include', 'prompt.txt');
         
         this.cache = {
             weather: null,

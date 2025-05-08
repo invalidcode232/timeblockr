@@ -30,7 +30,8 @@ Expected Response: A natural language summary that includes:
             "startTime": string,
             "endTime": string,
             "location": string | null
-        }
+        },
+        // and other events in the past and future
     ],
     "newEvent": {
         "summary": string,
