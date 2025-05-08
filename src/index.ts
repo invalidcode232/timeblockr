@@ -109,11 +109,6 @@ const main = async () => {
         logger.error('Invalid user input');
         return;
     }
-
-    // Determine user intent
-    // Right now, we're assuming ADD_EVENT since NLP is unimplemented
-    const intent = Intent.ADD_EVENT;
-    logger.info(`User intent: ${intent}`);
     // #endregion
 
     // #region Summarizer
@@ -122,21 +117,22 @@ const main = async () => {
     // #endregion
 
     // #region Scheduler
-    const intentResult = await scheduler.addEvent(userInput);
+    const intentResult = await scheduler.handleUserInput(userInput);
     logger.debug(`intentResult:\n${JSON.stringify(intentResult, null, 4)}`);
 
     if (intentResult.type === Intent.ADD_EVENT) {
+        const addEventResult = intentResult.result as AddEventResult;
         const newEvent: CalendarEvent = {
             summary: userInput,
-            startTime: intentResult.result.startTime,
-            endTime: intentResult.result.endTime,
+            startTime: addEventResult.startTime,
+            endTime: addEventResult.endTime,
         };
 
         // Add event to calendar
         const addRes = await gClient.addEvent(newEvent);
         logger.debug(`addRes:\n${JSON.stringify(addRes, null, 4)}`);
 
-        logger.info(`Added event to calendar. Justification: ${intentResult.result.message}`);
+        logger.info(`Added event to calendar. Justification: ${addEventResult.message}`);
     }
     // #endregion
 };

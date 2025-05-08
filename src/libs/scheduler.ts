@@ -9,6 +9,9 @@ import {
     type IntentResult, 
     type WeatherData, 
     type AddEventResult,
+    type UpdateEventResult,
+    type CancelEventResult,
+    type FeedbackResult,
     AISummarizerPayloadSchema 
 } from "../types/types";
 import { Intent } from "../types/types";
@@ -92,7 +95,36 @@ class Scheduler {
         return summary;
     }
 
-    async addEvent(userInput: string): Promise<IntentResult & { type: Intent.ADD_EVENT; result: AddEventResult }> {
+    /**
+     * Public method to handle user input and determine intent
+     * Currently assumes ADD_EVENT intent, but will be expanded to handle other intents
+     */
+    async handleUserInput(userInput: string): Promise<IntentResult> {
+        logger.debug(`Processing user input: ${userInput}`);
+        
+        // TODO: Implement intent determination logic
+        // For now, we assume ADD_EVENT intent
+        const intent = Intent.ADD_EVENT;
+        logger.debug(`Determined intent: ${intent}`);
+
+        switch (intent) {
+            case Intent.ADD_EVENT:
+                return this.addEvent(userInput);
+            //@ts-ignore
+            case Intent.UPDATE_EVENT:
+                return this.updateEvent(userInput);
+            //@ts-ignore
+            case Intent.CANCEL_EVENT:
+                return this.cancelEvent(userInput);
+            //@ts-ignore
+            case Intent.FEEDBACK:
+                return this.handleFeedback(userInput);
+            default:
+                throw new Error('Invalid intent');
+        }
+    }
+
+    private async addEvent(userInput: string): Promise<IntentResult & { type: Intent.ADD_EVENT; result: AddEventResult }> {
         const events = await this.getEvents();
 
         // TODO: parse userInput to get summary, startTime, endTime, etc.
@@ -107,6 +139,21 @@ class Scheduler {
         const intentResult = await this.aiClient.processIntent(Intent.ADD_EVENT, intentPayload);
 
         return intentResult as IntentResult & { type: Intent.ADD_EVENT; result: AddEventResult };
+    }
+
+    private async updateEvent(userInput: string): Promise<IntentResult & { type: Intent.UPDATE_EVENT; result: UpdateEventResult }> {
+        // TODO: Implement update event logic
+        throw new Error('Update event not implemented yet');
+    }
+
+    private async cancelEvent(userInput: string): Promise<IntentResult & { type: Intent.CANCEL_EVENT; result: CancelEventResult }> {
+        // TODO: Implement cancel event logic
+        throw new Error('Cancel event not implemented yet');
+    }
+
+    private async handleFeedback(userInput: string): Promise<IntentResult & { type: Intent.FEEDBACK; result: FeedbackResult }> {
+        // TODO: Implement feedback logic
+        throw new Error('Feedback not implemented yet');
     }
 
     // Method to force refresh cache
