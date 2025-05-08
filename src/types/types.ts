@@ -56,17 +56,20 @@ const AddEventResultSchema = z.object({
 
 const UpdateEventResultSchema = z.object({
     eventId: z.string(),
-    updates: CalendarEventSchema.partial()
+    updates: CalendarEventSchema.partial(),
+    message: z.string()
 });
 
 const CancelEventResultSchema = z.object({
     eventId: z.string(),
-    success: z.boolean()
+    success: z.boolean(),
+    message: z.string()
 });
 
 const FeedbackResultSchema = z.object({
     eventId: z.string(),
-    processed: z.boolean()
+    processed: z.boolean(),
+    message: z.string()
 });
 
 const AISummarizerPayloadSchema = z.object({

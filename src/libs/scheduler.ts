@@ -16,7 +16,7 @@ import {
 } from "../types/types";
 import { Intent } from "../types/types";
 import logger from "../utils/logging";
-import validatePayload from "../utils/validate";
+import path from 'path';
 
 interface Cache {
     weather: WeatherData | null;
@@ -31,6 +31,7 @@ class Scheduler {
     private googleClient: GoogleClient;
     private cache: Cache;
     private readonly cacheDuration: number;
+    private readonly promptPath: string;
 
     constructor(
         aiClient: AIClient, 
@@ -42,6 +43,7 @@ class Scheduler {
         this.weatherClient = weatherClient;
         this.googleClient = googleClient;
         this.cacheDuration = cacheDuration;
+        this.promptPath = path.join(process.cwd(), 'src', 'include', 'prompt.txt');
         
         this.cache = {
             weather: null,
@@ -110,13 +112,13 @@ class Scheduler {
         switch (intent) {
             case Intent.ADD_EVENT:
                 return this.addEvent(userInput);
-            //@ts-ignore
+            // @ts-ignore
             case Intent.UPDATE_EVENT:
                 return this.updateEvent(userInput);
-            //@ts-ignore
+            // @ts-ignore
             case Intent.CANCEL_EVENT:
                 return this.cancelEvent(userInput);
-            //@ts-ignore
+            // @ts-ignore
             case Intent.FEEDBACK:
                 return this.handleFeedback(userInput);
             default:
@@ -126,9 +128,6 @@ class Scheduler {
 
     private async addEvent(userInput: string): Promise<IntentResult & { type: Intent.ADD_EVENT; result: AddEventResult }> {
         const events = await this.getEvents();
-
-        // TODO: parse userInput to get summary, startTime, endTime, etc.
-        // Determine activity type, get data based on activity type
 
         const intentPayload: AddEventPayload = {
             events,
@@ -142,18 +141,44 @@ class Scheduler {
     }
 
     private async updateEvent(userInput: string): Promise<IntentResult & { type: Intent.UPDATE_EVENT; result: UpdateEventResult }> {
-        // TODO: Implement update event logic
-        throw new Error('Update event not implemented yet');
+        const events = await this.getEvents();
+        
+        // TODO: Parse userInput to get eventId and updates
+        const intentPayload = {
+            events,
+            eventId: "sample_event_id", // This should be parsed from userInput
+            updates: { summary: userInput },
+            currentDate: new Date().toISOString()
+        };
+
+        const intentResult = await this.aiClient.processIntent(Intent.UPDATE_EVENT, intentPayload);
+        return intentResult as IntentResult & { type: Intent.UPDATE_EVENT; result: UpdateEventResult };
     }
 
     private async cancelEvent(userInput: string): Promise<IntentResult & { type: Intent.CANCEL_EVENT; result: CancelEventResult }> {
-        // TODO: Implement cancel event logic
-        throw new Error('Cancel event not implemented yet');
+        const events = await this.getEvents();
+        
+        // TODO: Parse userInput to get eventId
+        const intentPayload = {
+            events,
+            eventId: "sample_event_id", // This should be parsed from userInput
+            currentDate: new Date().toISOString()
+        };
+
+        const intentResult = await this.aiClient.processIntent(Intent.CANCEL_EVENT, intentPayload);
+        return intentResult as IntentResult & { type: Intent.CANCEL_EVENT; result: CancelEventResult };
     }
 
     private async handleFeedback(userInput: string): Promise<IntentResult & { type: Intent.FEEDBACK; result: FeedbackResult }> {
-        // TODO: Implement feedback logic
-        throw new Error('Feedback not implemented yet');
+        // TODO: Parse userInput to get eventId and feedback
+        const intentPayload = {
+            eventId: "sample_event_id", // This should be parsed from userInput
+            feedback: userInput,
+            currentDate: new Date().toISOString()
+        };
+
+        const intentResult = await this.aiClient.processIntent(Intent.FEEDBACK, intentPayload);
+        return intentResult as IntentResult & { type: Intent.FEEDBACK; result: FeedbackResult };
     }
 
     // Method to force refresh cache

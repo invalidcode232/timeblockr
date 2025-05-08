@@ -47,6 +47,7 @@ class AIClient {
             deployment: process.env.AZURE_OPENAI_DEPLOYMENT_NAME,
             apiVersion: process.env.AZURE_OPENAI_API_VERSION,
             apiKey: process.env.AZURE_OPENAI_API_KEY,
+            endpoint: process.env.AZURE_OPENAI_ENDPOINT
         });
 
         this.initializePrompts().catch(err => {
