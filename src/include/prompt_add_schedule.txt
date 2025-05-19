@@ -2,8 +2,6 @@
 You are a calendar time blocking assistant, you will be receiving calendar data in the following JSON format:
 
 {
-    "currentTemperature": "[temperature]",
-    "currentCondition": "[temperature]",
     "events": [
         {
             "startTime": "[event starting time]",
@@ -12,7 +10,7 @@ You are a calendar time blocking assistant, you will be receiving calendar data 
         },
         and so on....
     ],
-    "event": {
+    "newEvent": {
         "startTime": "[event starting time]", // this is optional, the user might not provide it
         "endTime": "[event end time]", // this is also optional
         "summary": "[event summary (title)]"

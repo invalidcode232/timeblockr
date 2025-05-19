@@ -2,13 +2,13 @@ import json
 import os
 from openai import AzureOpenAI
 import time
-import re
 from dotenv import load_dotenv
 from pathlib import Path
 
 root_dir = Path(__file__).resolve().parents[2]  # Go up three levels to project root
-dotenv_path = root_dir / '.env'
+dotenv_path = root_dir / ".env"
 load_dotenv(dotenv_path)
+
 
 def initialize_client():
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
@@ -25,6 +25,7 @@ def initialize_client():
 
     return client, deployment_name
 
+
 def generate_response(
     client, deployment_name, user_prompt, system_message="You are a helpful assistant."
 ):
@@ -35,7 +36,7 @@ def generate_response(
                 {"role": "system", "content": system_message},
                 {"role": "user", "content": user_prompt},
             ],
-            temperature=0.7,
+            temperature=0.9,
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -68,20 +69,16 @@ def generate_single_variation(
         "You are a dataset generator creating a diverse conversation example."
     )
 
-    for attempt in range(3):  # ERROR CHECKING: Make sure it is valid json, try up to 3 times to get valid JSON
-        response = generate_response(client, deployment_name, user_prompt, system_message)
-
-        try:
-            json_match = re.search(r"(\{.*\})", response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-                sample = json.loads(json_str)
-                if "messages" in sample and len(sample["messages"]) == 2:
-                    return sample
-        except:
-            pass
+    for _ in range(
+        3
+    ):  # ERROR CHECKING: Make sure it is valid json, try up to 3 times to get valid JSON
+        response = generate_response(
+            client, deployment_name, user_prompt, system_message
+        )
 
         time.sleep(1)  # Short delay before retrying
+
+        return response
 
     # If all attempts failed, create a simple variation
     return {
@@ -127,7 +124,7 @@ def save_to_jsonl(samples, filename="dataset.jsonl"):
 # Main function
 def main():
     # Read include/prompt.txt, in src/dataset-gen/include
-    prompt_dir = os.path.join( root_dir, "src", "dataset-gen", "include", "prompt.txt")
+    prompt_dir = os.path.join(root_dir, "src", "dataset-gen", "include", "prompt.txt")
     prompt_file = open(prompt_dir, "r")
     user_prompt = prompt_file.read()
     prompt_file.close()
@@ -179,9 +176,7 @@ def main():
         num_samples = 0
         while num_samples <= 0:
             try:
-                num_samples = int(
-                    input("\nSample size: ")
-                )
+                num_samples = int(input("\nSample size: "))
             except ValueError:
                 print("Please enter a valid number.")
 
@@ -199,9 +194,7 @@ def main():
 
         save_to_jsonl(samples, filename)
 
-        continue_generating = input(
-            "\nCreate another dataset? (yes/no): "
-        ).lower()
+        continue_generating = input("\nCreate another dataset? (yes/no): ").lower()
 
         if continue_generating != "yes" and continue_generating != "y":
             break

@@ -1,9 +1,8 @@
 import { OpenAI } from 'openai/index.mjs';
 import path from 'path';
-import type { ChatCompletion } from 'openai/resources/index.mjs';
 import logger from '../utils/logging';
 import {
-    AISummarizerResultSchema,
+    // AISummarizerResultSchema,
     type IntentPayload,
     type IntentResult,
     type AddEventPayload,
@@ -11,13 +10,7 @@ import {
     type CancelEventPayload,
     type FeedbackPayload,
     AddEventPayloadSchema,
-    UpdateEventPayloadSchema,
-    CancelEventPayloadSchema,
-    FeedbackPayloadSchema,
     AddEventResultSchema,
-    UpdateEventResultSchema,
-    CancelEventResultSchema,
-    FeedbackResultSchema,
     Intent,
     type AISummarizerPayload,
     AISummarizerPayloadSchema
@@ -132,42 +125,15 @@ class AIClient {
     }
 
     private async handleUpdateEvent(payload: UpdateEventPayload): Promise<IntentResult> {
-        const validatedPayload = validatePayload(payload, UpdateEventPayloadSchema);
-        const dataRes = await this.rawSend(JSON.stringify(validatedPayload), 'add_schedule'); // Using add_schedule prompt for now
-
-        const validatedResult = validatePayload(JSON.parse(dataRes), UpdateEventResultSchema);
-        return {
-            type: Intent.UPDATE_EVENT,
-            result: validatedResult
-        };
+        throw new Error('Not implemented');
     }
 
     private async handleCancelEvent(payload: CancelEventPayload): Promise<IntentResult> {
-        const validatedPayload = validatePayload(payload, CancelEventPayloadSchema);
-        const dataRes = await this.rawSend(JSON.stringify(validatedPayload), 'add_schedule'); // Using add_schedule prompt for now
-
-        const cleanedStr = dataRes
-            .replace(/^```json\s*/, '')  // Remove leading ```json
-            .replace(/\s*```$/, '')      // Remove trailing ```
-            .trim();                     // Remove extra whitespace
-
-
-        const validatedResult = validatePayload(JSON.parse(cleanedStr), CancelEventResultSchema);
-        return {
-            type: Intent.CANCEL_EVENT,
-            result: validatedResult
-        };
+        throw new Error('Not implemented');
     }
 
     private async handleFeedback(payload: FeedbackPayload): Promise<IntentResult> {
-        const validatedPayload = validatePayload(payload, FeedbackPayloadSchema);
-        const dataRes = await this.rawSend(JSON.stringify(validatedPayload), 'add_schedule'); // Using add_schedule prompt for now
-
-        const validatedResult = validatePayload(JSON.parse(dataRes), FeedbackResultSchema);
-        return {
-            type: Intent.FEEDBACK,
-            result: validatedResult
-        };
+        throw new Error('Not implemented');
     }
 
     async processIntent(intent: Intent, payload: IntentPayload): Promise<IntentResult> {

@@ -10,33 +10,6 @@ import type {
 import { Intent } from './types/types';
 import prompts from 'prompts';
 
-// Configuration interface
-interface Config {
-    maxRetries: number;
-    cacheDuration: number;
-}
-
-// Default configuration
-const config: Config = {
-    maxRetries: 3,
-    cacheDuration: 5 * 60 * 1000, // 5 minutes in milliseconds
-};
-
-// Cache for weather and calendar data
-interface WeatherData {
-    temp: {
-        cur: number;
-    };
-    conditionId: number;
-}
-
-const cache = {
-    weather: null as WeatherData | null,
-    weatherTimestamp: 0,
-    events: null as CalendarEvent[] | null,
-    eventsTimestamp: 0,
-};
-
 // Validate user input
 const validateUserInput = (input: string): boolean => {
     if (!input || input.trim().length === 0) {
@@ -44,37 +17,6 @@ const validateUserInput = (input: string): boolean => {
         return false;
     }
     return true;
-};
-
-// Get weather data with caching
-const getWeatherData = async (weatherClient: WeatherClient) => {
-    const now = Date.now();
-    if (cache.weather && now - cache.weatherTimestamp < config.cacheDuration) {
-        logger.info('Using cached weather data');
-        return cache.weather;
-    }
-
-    const weather = await weatherClient.getWeather();
-    cache.weather = weather;
-    cache.weatherTimestamp = now;
-    return weather;
-};
-
-// Get calendar events with caching
-const getCalendarEvents = async (gClient: GoogleClient) => {
-    const now = Date.now();
-    if (cache.events && now - cache.eventsTimestamp < config.cacheDuration) {
-        logger.info('Using cached calendar events');
-        return cache.events;
-    }
-
-    const events = await gClient.getEvents();
-    if (!events) {
-        throw new Error('Failed to fetch calendar events');
-    }
-    cache.events = events;
-    cache.eventsTimestamp = now;
-    return events;
 };
 
 const main = async () => {
