@@ -3,10 +3,7 @@ import logger from './utils/logging';
 import AIClient from './libs/openai';
 import WeatherClient from './libs/weather';
 import Scheduler from './libs/scheduler';
-import type {
-    CalendarEvent,
-    AddEventResult,
-} from './types/types';
+import type { CalendarEvent, AddEventResult } from './types/types';
 import { Intent } from './types/types';
 import prompts from 'prompts';
 
@@ -45,7 +42,9 @@ const main = async () => {
 
     // #region Summarizer
     const summary = await scheduler.getSummary();
-    logger.info(`Retrieved summary: ${JSON.stringify(summary, null, 4).replace(/\\n/g, '\n')}`);
+    logger.info(
+        `Retrieved summary: ${JSON.stringify(summary, null, 4).replace(/\\n/g, '\n')}`
+    );
     // #endregion
 
     // #region Scheduler
@@ -64,7 +63,9 @@ const main = async () => {
         const addRes = await gClient.addEvent(newEvent);
         logger.debug(`addRes:\n${JSON.stringify(addRes, null, 4)}`);
 
-        logger.info(`Added event to calendar. Message:\n${addEventResult.message}`);
+        logger.info(
+            `Added event to calendar. Message:\n${addEventResult.message}`
+        );
     }
     // #endregion
 };
